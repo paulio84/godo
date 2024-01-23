@@ -1,10 +1,8 @@
-package db
+package database
 
 import (
 	"database/sql"
 	"errors"
-
-	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/paulio84/godo/internal/models/filter"
 	"github.com/paulio84/godo/internal/models/todo"
@@ -14,38 +12,24 @@ type SQLiteService struct {
 	db *sql.DB
 }
 
-func NewSQLiteService() DBService {
-	return &SQLiteService{}
+func NewSQLiteService(db *sql.DB) DBServicer {
+	return &SQLiteService{
+		db: db,
+	}
 }
 
-func (sqlite *SQLiteService) Connect() error {
-	db, err := sql.Open("sqlite3", "todo.db")
-	if err != nil {
-		return err
-	}
-
-	err = db.Ping()
-	if err != nil {
-		return err
-	}
-
-	sqlite.db = db
-	err = sqlite.executeTransaction(`
+func (sqlite *SQLiteService) Init() error {
+	if err := sqlite.executeTransaction(`
 		CREATE TABLE IF NOT EXISTS todo (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			title VARCHAR(100) NOT NULL,
 			isCompleted INTEGER NOT NULL DEFAULT 0 CHECK(isCompleted IN (0, 1))
 		);
-	`)
-	if err != nil {
+	`); err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func (sqlite SQLiteService) Close() error {
-	return sqlite.db.Close()
 }
 
 func (sqlite SQLiteService) AddTodo(title string) error {
@@ -78,11 +62,11 @@ func (sqlite SQLiteService) ToggleCompleted(id int) error {
 func (sqlite SQLiteService) ListTodos(todoFilter filter.TodoFilter) ([]todo.Todo, error) {
 	var query string
 	switch todoFilter {
-	case filter.ALL:
+	case filter.All:
 		query = "SELECT id, title, isCompleted FROM todo"
-	case filter.ONLY_COMPLETED:
+	case filter.OnlyCompleted:
 		query = "SELECT id, title, isCompleted FROM todo WHERE isCompleted = 1"
-	case filter.NOT_COMPLETED:
+	case filter.NotCompleted:
 		query = "SELECT id, title, isCompleted FROM todo WHERE isCompleted = 0"
 	}
 
@@ -109,7 +93,7 @@ func (sqlite SQLiteService) ListTodos(todoFilter filter.TodoFilter) ([]todo.Todo
 
 		// append a new todo to the list
 		todo := todo.Todo{
-			Id:          id,
+			ID:          id,
 			Title:       title,
 			IsCompleted: isCompleted != 0,
 		}

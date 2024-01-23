@@ -1,7 +1,7 @@
 package todo
 
 type Todo struct {
-	Id          int
+	ID          int
 	Title       string
 	IsCompleted bool
 }

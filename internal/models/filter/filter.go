@@ -3,14 +3,14 @@ package filter
 type TodoFilter int
 
 const (
-	ALL TodoFilter = iota
-	ONLY_COMPLETED
-	NOT_COMPLETED
+	All TodoFilter = iota
+	OnlyCompleted
+	NotCompleted
 )
 
 func (tf TodoFilter) IsValid() bool {
 	switch tf {
-	case ALL, ONLY_COMPLETED, NOT_COMPLETED:
+	case All, OnlyCompleted, NotCompleted:
 		return true
 	}
 
