@@ -24,5 +24,5 @@ func displayCreated(res core.DBResult) {
 		fmt.Println(res.Err)
 	}
 
-	fmt.Println("Created ", res.RowsAffected, "todo item.")
+	fmt.Printf("Created %d todo item.\n", res.RowsAffected)
 }

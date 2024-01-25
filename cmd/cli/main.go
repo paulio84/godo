@@ -2,16 +2,20 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/paulio84/godo/internal/models/commands"
+	"github.com/paulio84/godo/internal/models/core"
 	"github.com/paulio84/godo/internal/models/filter"
 )
 
 func main() {
+	defer errorHandler()
+
 	db, err := openDB()
 	if err != nil {
 		log.Fatal(err)
@@ -22,25 +26,16 @@ func main() {
 	cli.dbService.Init()
 
 	// get and process command-line args passed to the program
-	if len(os.Args) == 1 {
-		os.Args = append(os.Args, "-h")
-	}
+	args := processArgs(os.Args)
 
-	// DEBUGGING
-	// a, b := cli.dbService.AddTodo("A todo item")
-	// fmt.Println(a, b)
-	// cli.dbService.ToggleCompleted(8)
-	// l, _ := cli.dbService.ListTodos(filter.All)
-	// fmt.Println(l)
-	// cli.dbService.EditTodo(1, "A todo itemaaa")
-	// cli.dbService.PurgeTodos()
-
-	switch os.Args[1] {
-	case "-l", "list":
+	switch args.tag {
+	case core.A, core.Add:
+		cli.command = commands.NewAddTodoCommand(cli.dbService, displayCreated, args.todoTitle)
+	case core.L, core.List:
 		cli.command = commands.NewListCommand(cli.dbService, displayTodoData, filter.NotCompleted)
-	case "-la", "list-all":
+	case core.LA, core.ListAll:
 		cli.command = commands.NewListCommand(cli.dbService, displayTodoData, filter.All)
-	case "-ld", "list-done":
+	case core.LD, core.ListDone:
 		cli.command = commands.NewListCommand(cli.dbService, displayTodoData, filter.OnlyCompleted)
 	default: // unknown, -h or help
 		cli.command = commands.NewHelpCommand(displayHelpText)
@@ -61,4 +56,44 @@ func openDB() (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+type cliArgs struct {
+	tag       string
+	id        int
+	todoTitle string
+}
+
+func processArgs(osArgs []string) (args cliArgs) {
+	// fmt.Println("ARGS->", osArgs)
+	if len(osArgs) == 1 {
+		args = cliArgs{
+			tag: core.H,
+		}
+		return
+	}
+
+	args = cliArgs{
+		tag: osArgs[1],
+	}
+
+	switch args.tag {
+	case core.L, core.List:
+	case core.LA, core.ListAll:
+	case core.LD, core.ListDone:
+		return
+	case core.A, core.Add:
+		if len(osArgs) <= 2 {
+			panic(core.TitleMandatory)
+		}
+		args.todoTitle = osArgs[2]
+	}
+
+	return
+}
+
+func errorHandler() {
+	if r := recover(); r != nil {
+		fmt.Println(r)
+	}
 }
