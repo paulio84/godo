@@ -2,26 +2,14 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/paulio84/godo/internal/models/commands"
 	"github.com/paulio84/godo/internal/models/filter"
-	"github.com/paulio84/godo/internal/service/database"
 )
-
-type cli struct {
-	dbService database.DBServicer
-	command   Commander
-}
-
-func newCLI(db *sql.DB) *cli {
-	return &cli{
-		dbService: database.NewSQLiteService(db),
-	}
-}
 
 func main() {
 	db, err := openDB()
@@ -33,12 +21,34 @@ func main() {
 	cli := newCLI(db)
 	cli.dbService.Init()
 
-// cli.dbService.AddTodo("Gem Gem")
-// cli.dbService.ToggleCompleted(2)
-// l, _ := cli.dbService.ListTodos(filter.All)
-// fmt.Println(l)
-// cli.dbService.EditTodo(1, "Gem Gem")
-// cli.dbService.PurgeTodos()
+	// get and process command-line args passed to the program
+	if len(os.Args) == 1 {
+		os.Args = append(os.Args, "-h")
+	}
+
+	// DEBUGGING
+	// a, b := cli.dbService.AddTodo("A todo item")
+	// fmt.Println(a, b)
+	// cli.dbService.ToggleCompleted(8)
+	// l, _ := cli.dbService.ListTodos(filter.All)
+	// fmt.Println(l)
+	// cli.dbService.EditTodo(1, "A todo itemaaa")
+	// cli.dbService.PurgeTodos()
+
+	switch os.Args[1] {
+	case "-l", "list":
+		cli.command = commands.NewListCommand(cli.dbService, displayTodoData, filter.NotCompleted)
+	case "-la", "list-all":
+		cli.command = commands.NewListCommand(cli.dbService, displayTodoData, filter.All)
+	case "-ld", "list-done":
+		cli.command = commands.NewListCommand(cli.dbService, displayTodoData, filter.OnlyCompleted)
+	default: // unknown, -h or help
+		cli.command = commands.NewHelpCommand(displayHelpText)
+	}
+
+	cli.command.Execute()
+	cli.command.ParseOutput()
+}
 
 func openDB() (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", "todo.db")

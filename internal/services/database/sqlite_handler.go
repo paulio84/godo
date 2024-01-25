@@ -19,7 +19,7 @@ func NewSQLiteService(db *sql.DB) DBServicer {
 }
 
 func (sqlite *SQLiteService) Init() error {
-	if err := sqlite.executeTransaction(`
+	if _, err := sqlite.executeTransaction(`
 		CREATE TABLE IF NOT EXISTS todo (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			title VARCHAR(100) NOT NULL,
@@ -32,26 +32,26 @@ func (sqlite *SQLiteService) Init() error {
 	return nil
 }
 
-func (sqlite SQLiteService) AddTodo(title string) error {
-	err := sqlite.executeTransaction("INSERT INTO todo (title) VALUES (?)", title)
+func (sqlite SQLiteService) AddTodo(title string) (int, error) {
+	affectedRows, err := sqlite.executeTransaction("INSERT INTO todo (title) VALUES (?)", title)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return int(affectedRows), nil
 }
 
-func (sqlite SQLiteService) EditTodo(id int, title string) error {
-	err := sqlite.executeTransaction("UPDATE todo SET title = ? WHERE id = ?", title, id)
+func (sqlite SQLiteService) EditTodo(id int, title string) (int, error) {
+	affectedRows, err := sqlite.executeTransaction("UPDATE todo SET title = ? WHERE id = ?", title, id)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return int(affectedRows), nil
 }
 
 func (sqlite SQLiteService) ToggleCompleted(id int) error {
-	err := sqlite.executeTransaction("UPDATE todo SET isCompleted = ((isCompleted | 1) - (isCompleted & 1)) WHERE id = ?", id)
+	_, err := sqlite.executeTransaction("UPDATE todo SET isCompleted = ((isCompleted | 1) - (isCompleted & 1)) WHERE id = ?", id)
 	if err != nil {
 		return err
 	}
@@ -103,36 +103,36 @@ func (sqlite SQLiteService) ListTodos(todoFilter filter.TodoFilter) ([]todo.Todo
 	return todos, nil
 }
 
-func (sqlite SQLiteService) PurgeTodos() error {
-	err := sqlite.executeTransaction("DELETE FROM todo WHERE isCompleted = 1")
+func (sqlite SQLiteService) PurgeTodos() (int, error) {
+	affectedRows, err := sqlite.executeTransaction("DELETE FROM todo WHERE isCompleted = 1")
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return int(affectedRows), nil
 }
 
-func (sqlite SQLiteService) executeTransaction(query string, args ...any) error {
+func (sqlite SQLiteService) executeTransaction(query string, args ...any) (int64, error) {
 	tx, err := sqlite.db.Begin()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(args...)
+	res, err := stmt.Exec(args...)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return res.RowsAffected()
 }

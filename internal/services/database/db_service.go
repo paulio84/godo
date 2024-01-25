@@ -6,10 +6,10 @@ import (
 )
 
 type DBServicer interface {
-	AddTodo(title string) error
+	AddTodo(title string) (int, error)
 	Init() error
-	EditTodo(id int, title string) error
+	EditTodo(id int, title string) (int, error)
 	ListTodos(todoFilter filter.TodoFilter) ([]todo.Todo, error)
-	PurgeTodos() error
+	PurgeTodos() (int, error)
 	ToggleCompleted(id int) error
 }
