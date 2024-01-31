@@ -42,7 +42,7 @@ func (c *cli) editTodoHandler(s string) error {
 	// parse the todo id
 	id, err := strconv.Atoi(s)
 	if err != nil {
-		return errors.New(core.CannotParseTodoId)
+		return errors.New(core.CannotParseTodoID)
 	}
 
 	// get the new title from the user
@@ -67,7 +67,7 @@ func (c *cli) purgeTodosHandler(s string) error {
 func (c *cli) toggleTodoHandler(s string) error {
 	id, err := strconv.Atoi(s)
 	if err != nil {
-		return errors.New(core.CannotParseTodoId)
+		return errors.New(core.CannotParseTodoID)
 	}
 
 	c.command = commands.NewToggleDoneCommand(c.dbService, displayToggled, id)
