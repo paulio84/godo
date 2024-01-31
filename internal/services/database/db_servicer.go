@@ -11,5 +11,5 @@ type DBServicer interface {
 	EditTodo(id int, title string) (int, error)
 	ListTodos(todoFilter filter.TodoFilter) ([]todo.Todo, error)
 	PurgeTodos() (int, error)
-	ToggleCompleted(id int) error
+	ToggleCompleted(id int) (int, error)
 }

@@ -3,7 +3,6 @@ package commands
 import (
 	"github.com/paulio84/godo/internal/models/core"
 	"github.com/paulio84/godo/internal/models/filter"
-	"github.com/paulio84/godo/internal/models/todo"
 	"github.com/paulio84/godo/internal/services/database"
 )
 
@@ -24,20 +23,11 @@ func NewListCommand(db database.DBServicer, parser func(core.DBResult), tf filte
 
 func (lc *ListCommand) Execute() {
 	data, err := lc.dbService.ListTodos(lc.listFilter)
-	if err != nil {
-		lc.result = core.DBResult{
-			RowsAffected: 0,
-			Data:         []todo.Todo{},
-			Err:          err,
-		}
-	}
 
 	lc.result = core.DBResult{
-		RowsAffected: 0,
-		Data:         data,
+		Data: data,
+		Err:  err,
 	}
-}
 
-func (lc ListCommand) ParseOutput() {
 	lc.parser(lc.result)
 }

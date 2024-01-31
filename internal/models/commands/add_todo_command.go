@@ -22,17 +22,11 @@ func NewAddTodoCommand(db database.DBServicer, parser func(core.DBResult), title
 
 func (atc *AddTodoCommand) Execute() {
 	rowsAffected, err := atc.dbService.AddTodo(atc.title)
-	if err != nil {
-		atc.result = core.DBResult{
-			Err: err,
-		}
-	}
 
 	atc.result = core.DBResult{
 		RowsAffected: rowsAffected,
+		Err:          err,
 	}
-}
 
-func (atc AddTodoCommand) ParseOutput() {
 	atc.parser(atc.result)
 }

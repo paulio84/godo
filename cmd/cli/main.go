@@ -1,13 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
+	"errors"
+	"flag"
 	"fmt"
-	"log"
 	"os"
+	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/paulio84/godo/internal/models/commands"
 	"github.com/paulio84/godo/internal/models/core"
 	"github.com/paulio84/godo/internal/models/filter"
@@ -16,33 +18,93 @@ import (
 func main() {
 	defer errorHandler()
 
+	// check if the database file exists, if it does not then we need to create
+	// it and create the table `todo`
+	var shouldCreateDB bool
+	f, err := os.Open("todo.db")
+	if err != nil {
+		shouldCreateDB = true
+	}
+	f.Close()
+
+	// get a connection pool to the database
 	db, err := openDB()
 	if err != nil {
-		log.Fatal(err)
+		panic("error: " + core.DBConnectionError)
 	}
 	defer db.Close()
 
 	cli := newCLI(db)
-	cli.dbService.Init()
-
-	// get and process command-line args passed to the program
-	args := processArgs(os.Args)
-
-	switch args.tag {
-	case core.A, core.Add:
-		cli.command = commands.NewAddTodoCommand(cli.dbService, displayCreated, args.todoTitle)
-	case core.L, core.List:
-		cli.command = commands.NewListCommand(cli.dbService, displayTodoData, filter.NotCompleted)
-	case core.LA, core.ListAll:
-		cli.command = commands.NewListCommand(cli.dbService, displayTodoData, filter.All)
-	case core.LD, core.ListDone:
-		cli.command = commands.NewListCommand(cli.dbService, displayTodoData, filter.OnlyCompleted)
-	default: // unknown, -h or help
-		cli.command = commands.NewHelpCommand(displayHelpText)
+	if shouldCreateDB {
+		cli.dbService.Init()
 	}
 
+	// setup flags to be used by the command-line
+	flag.Func("add", "`<todo item>` to be added.", func(s string) error {
+		if s == "" {
+			return errors.New(core.TitleMandatory)
+		}
+
+		cli.command = commands.NewAddTodoCommand(cli.dbService, displayCreated, s)
+		return nil
+	})
+
+	flag.Func("edit", "`<todo id>` to be updated.", func(s string) error {
+		// parse the todo id
+		id, err := strconv.Atoi(s)
+		if err != nil {
+			return errors.New(core.CannotParseTodoId)
+		}
+
+		// get the new title from the user
+		var newTitle string
+		scanner := bufio.NewScanner(os.Stdin)
+		fmt.Print("Enter a new title -> ")
+		scanner.Scan()
+		newTitle = scanner.Text()
+		if newTitle == "" {
+			return errors.New(core.TitleMandatory)
+		}
+
+		cli.command = commands.NewEditTodoCommand(cli.dbService, displayEdited, id, newTitle)
+		return nil
+	})
+
+	flag.BoolFunc("purge", "Remove completed todo's.", func(s string) error {
+		cli.command = commands.NewPurgeCommand(cli.dbService, displayPurged)
+		return nil
+	})
+
+	flag.Func("toggle", "`<todo id>` Todo to be completed, or uncompleted.", func(s string) error {
+		id, err := strconv.Atoi(s)
+		if err != nil {
+			return errors.New(core.CannotParseTodoId)
+		}
+
+		cli.command = commands.NewToggleDoneCommand(cli.dbService, displayToggled, id)
+		return nil
+	})
+
+	flag.BoolFunc("list", "list incomplete todo's.", func(s string) error {
+		cli.command = commands.NewListCommand(cli.dbService, displayTodoData, filter.NotCompleted)
+		return nil
+	})
+
+	flag.BoolFunc("list-done", "list completed todo's.", func(s string) error {
+		cli.command = commands.NewListCommand(cli.dbService, displayTodoData, filter.OnlyCompleted)
+
+		return nil
+	})
+
+	flag.BoolFunc("list-all", "list all todo's.", func(s string) error {
+		cli.command = commands.NewListCommand(cli.dbService, displayTodoData, filter.All)
+
+		return nil
+	})
+
+	flag.Parse()
+
 	cli.command.Execute()
-	cli.command.ParseOutput()
 }
 
 func openDB() (*sql.DB, error) {
@@ -56,40 +118,6 @@ func openDB() (*sql.DB, error) {
 	}
 
 	return db, nil
-}
-
-type cliArgs struct {
-	tag       string
-	id        int
-	todoTitle string
-}
-
-func processArgs(osArgs []string) (args cliArgs) {
-	// fmt.Println("ARGS->", osArgs)
-	if len(osArgs) == 1 {
-		args = cliArgs{
-			tag: core.H,
-		}
-		return
-	}
-
-	args = cliArgs{
-		tag: osArgs[1],
-	}
-
-	switch args.tag {
-	case core.L, core.List:
-	case core.LA, core.ListAll:
-	case core.LD, core.ListDone:
-		return
-	case core.A, core.Add:
-		if len(osArgs) <= 2 {
-			panic(core.TitleMandatory)
-		}
-		args.todoTitle = osArgs[2]
-	}
-
-	return
 }
 
 func errorHandler() {

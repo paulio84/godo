@@ -50,13 +50,13 @@ func (sqlite SQLiteService) EditTodo(id int, title string) (int, error) {
 	return int(affectedRows), nil
 }
 
-func (sqlite SQLiteService) ToggleCompleted(id int) error {
-	_, err := sqlite.executeTransaction("UPDATE todo SET isCompleted = ((isCompleted | 1) - (isCompleted & 1)) WHERE id = ?", id)
+func (sqlite SQLiteService) ToggleCompleted(id int) (int, error) {
+	affectedRows, err := sqlite.executeTransaction("UPDATE todo SET isCompleted = ((isCompleted | 1) - (isCompleted & 1)) WHERE id = ?", id)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return int(affectedRows), nil
 }
 
 func (sqlite SQLiteService) ListTodos(todoFilter filter.TodoFilter) ([]todo.Todo, error) {
